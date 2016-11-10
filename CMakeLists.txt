@@ -21,13 +21,18 @@ if(NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libuvc")
     "git submodule update --init --recursive")
 endif()
 
-INCLUDE_DIRECTORIES ( libuvc/include )
+find_package( PkgConfig REQUIRED )
+pkg_check_modules( MYPKG REQUIRED libusb-1.0 )
+include_directories( ${MYPKG_INCLUDE_DIRS} )
+
+INCLUDE_DIRECTORIES ( libuvc/include libuvc/include/libuvc )
 
 FILE ( GLOB LIBUVC_SOURCE libuvc/src/*.c )
 
 FILE ( GLOB HDRCAM_SOURCE src/*.cpp )
 
 ADD_EXECUTABLE ( hdrcam.out ${LIBUVC_SOURCE} ${HDRCAM_SOURCE} )
+target_link_libraries( hdrcam.out ${MYPKG_LIBRARIES} )
 
 INSTALL ( TARGETS hdrcam.out DESTINATION bin )
 

@@ -16,8 +16,9 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 if(NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libuvc")
   message(FATAL_ERROR "The libuvc submodule directory is missing! "
-    "You probably did not clone the project with --recursive. It is possible "
-    "to recover by running \"git submodule update --init --recursive\"")
+    "You probably did not clone the project with --recursive. "
+    "It is possible to recover by running:\n"
+    "git submodule update --init --recursive")
 endif()
 
 INCLUDE_DIRECTORIES ( libuvc/include )

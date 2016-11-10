@@ -14,25 +14,45 @@ ENDIF()
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-if(NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libuvc")
+if(NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ext/libuvc")
   message(FATAL_ERROR "The libuvc submodule directory is missing! "
     "You probably did not clone the project with --recursive. "
     "It is possible to recover by running:\n"
     "git submodule update --init --recursive")
 endif()
 
+find_package( Threads )
+
 find_package( PkgConfig REQUIRED )
-pkg_check_modules( MYPKG REQUIRED libusb-1.0 )
+pkg_check_modules( MYPKG REQUIRED libusb-1.0 libjpeg opencv )
 include_directories( ${MYPKG_INCLUDE_DIRS} )
 
-INCLUDE_DIRECTORIES ( libuvc/include libuvc/include/libuvc )
+add_subdirectory( ext/libuvc )
+include_directories ( 
+    ${CMAKE_BINARY_DIR}/ext/libuvc/include 
+    ext/libuvc/include 
+    )
 
-FILE ( GLOB LIBUVC_SOURCE libuvc/src/*.c )
+set ( LIBUVC_SOURCE 
+    ext/libuvc/src/ctrl-gen.c
+    ext/libuvc/src/ctrl.c
+    ext/libuvc/src/device.c
+    ext/libuvc/src/diag.c
+    ext/libuvc/src/frame-mjpeg.c
+    ext/libuvc/src/frame.c
+    ext/libuvc/src/init.c
+    ext/libuvc/src/misc.c
+    ext/libuvc/src/stream.c
+    )
 
-FILE ( GLOB HDRCAM_SOURCE src/*.cpp )
+set ( HDRCAM_SOURCE src/main.cpp )
 
-ADD_EXECUTABLE ( hdrcam.out ${LIBUVC_SOURCE} ${HDRCAM_SOURCE} )
-target_link_libraries( hdrcam.out ${MYPKG_LIBRARIES} )
+add_executable ( hdrcam.out ${LIBUVC_SOURCE} ${HDRCAM_SOURCE} )
+target_link_libraries( hdrcam.out 
+    ${MYPKG_LIBRARIES} 
+    ${CMAKE_THREAD_LIBS_INIT} 
+    ${LIBUSB_LIBRARIES}
+    )
 
-INSTALL ( TARGETS hdrcam.out DESTINATION bin )
+install ( TARGETS hdrcam.out DESTINATION bin )
 

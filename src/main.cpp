@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 //#include <opencv/highgui.h>
 
 #include <libuvc/libuvc.h>
@@ -86,7 +87,7 @@ int main(int argc, char **argv) {
       if (res < 0) {
         uvc_perror(res, "get_mode");
       } else {
-        res = uvc_start_streaming(devh, &ctrl, cb, 12345, 0);
+        res = uvc_start_streaming(devh, &ctrl, cb, nullptr, 0);
 
         if (res < 0) {
           uvc_perror(res, "start_streaming");

@@ -12,7 +12,7 @@ IF(CMAKE_BUILD_TYPE MATCHES RELEASE)
   ADD_DEFINITIONS (-DNDEBUG)
 ENDIF()
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 
 if(NOT IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ext/libuvc")
   message(FATAL_ERROR "The libuvc submodule directory is missing! "
@@ -29,9 +29,7 @@ include_directories( ${MYPKG_INCLUDE_DIRS} )
 
 add_subdirectory( ext/libuvc )
 include_directories ( 
-    ${CMAKE_BINARY_DIR}/ext/libuvc/include 
-    ext/libuvc/include 
-    )
+    ${CMAKE_BINARY_DIR}/ext/libuvc/include ext/libuvc/include )
 
 set ( LIBUVC_SOURCE 
     ext/libuvc/src/ctrl-gen.c
@@ -45,14 +43,13 @@ set ( LIBUVC_SOURCE
     ext/libuvc/src/stream.c
     )
 
-set ( HDRCAM_SOURCE src/main.cpp )
-
-add_executable ( hdrcam.out ${LIBUVC_SOURCE} ${HDRCAM_SOURCE} )
+add_executable ( hdrcam.out ${LIBUVC_SOURCE} src/hdrcam.cpp )
 target_link_libraries( hdrcam.out 
-    ${MYPKG_LIBRARIES} 
-    ${CMAKE_THREAD_LIBS_INIT} 
-    ${LIBUSB_LIBRARIES}
-    )
+    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
 
-install ( TARGETS hdrcam.out DESTINATION bin )
+add_executable ( caminfo.out ${LIBUVC_SOURCE} src/caminfo.cpp )
+target_link_libraries( caminfo.out 
+    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
+
+install ( TARGETS hdrcam.out caminfo.out DESTINATION bin )
 

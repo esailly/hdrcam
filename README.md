@@ -18,7 +18,7 @@ mkdir hdrcam/build
 cd hdrcam/build
 cmake ..
 make
-sudo ./hdrcam  # or adjust udev rules to execute as a normal user
+sudo ./hdrcam.out  # or adjust udev rules to execute as a normal user
 ```
 
 This should clone and build the [https://github.com/ktossell/libuvc](libuvc)

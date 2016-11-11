@@ -21,7 +21,7 @@ make
 sudo ./hdrcam.out  # or adjust udev rules to execute as a normal user
 ```
 
-This should clone and build the [https://github.com/ktossell/libuvc](libuvc)
+This should clone and build the [libuvc](https://github.com/ktossell/libuvc)
 submodule automatically.
 
 ## TODO

@@ -21,8 +21,10 @@ pkg_check_modules( MYPKG REQUIRED opencv )
 include_directories( ${MYPKG_INCLUDE_DIRS} )
 
 add_executable ( hdrcam_v4l.out src/hdrcam_v4l.cpp )
-target_link_libraries( hdrcam_v4l.out 
-    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( hdrcam_v4l.out ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
-install ( TARGETS hdrcam_v4l.out DESTINATION bin )
+add_executable ( cv.out src/cv.cpp )
+target_link_libraries( cv.out ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+
+install ( TARGETS hdrcam_v4l.out cv.out DESTINATION bin )
 

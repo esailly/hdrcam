@@ -1,4 +1,6 @@
+#include <opencv2/opencv.hpp>
 #include <linux/videodev2.h>
+#include <string>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,12 +27,11 @@ struct buffer_t {
 char dev_name[] = "/dev/video0";
 int fd = -1;
 buffer_t *buffers = NULL;
-unsigned int n_buffers = 1;
+unsigned int n_buffers = 0;
 unsigned int capture_count = 10;
 unsigned int capture_interval = 10;
 unsigned int capture_idx = 0;
-unsigned int capture_fmt = V4L2_PIX_FMT_MJPEG;
-//unsigned int capture_fmt = V4L2_PIX_FMT_YUYV;
+unsigned int capture_fmt = V4L2_PIX_FMT_YUYV;
 
 int pw = 640;
 int ph = 480;
@@ -49,34 +50,15 @@ int xioctl(int fd, int request, void *arg) {
     return res;
 }
 
-void dump_raw_to_file(void *data, int len, const char *suffix)
-{
-    int fd;
-    int ret;
-    char name[128];
-    char *fcc;
-
-    fcc = (char *)&capture_fmt;
-    sprintf (name, "raw-%d%s.%c%c%c%c",
-            capture_idx, suffix,
-            fcc[0], fcc[1], fcc[2], fcc[3]);
-    fd = open(name, O_CREAT|O_TRUNC|O_RDWR, 0660);
-
-    //printf("Dumped %d bytes\n", len);
-    while(len > 0)
-    {
-        ret = write (fd, data, len);
-        if (ret < 0)
-            break;
-        len -= ret;
-    }
-
-    close(fd);
-}
-
 void process_image(const struct v4l2_buffer *buf) {
 
-    dump_raw_to_file(buffers[buf->index].start, buf->bytesused, "");
+    void * data = buffers[buf->index].start;
+
+    cv::Mat mYUYV(ph, pw, CV_8UC2, data);
+    cv::Mat mBGR(ph, pw, CV_8UC3);
+    cv::cvtColor(mYUYV, mBGR, cv::COLOR_YUV2BGR_YUYV);
+    cv::imwrite("frame_"+std::to_string(capture_idx)+".png", mBGR);
+
     fputc('.', stdout);
     fflush(stdout);
 }

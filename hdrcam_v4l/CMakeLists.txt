@@ -17,7 +17,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 find_package( Threads )
 
 find_package( PkgConfig REQUIRED )
-pkg_check_modules( MYPKG REQUIRED opencv )
+pkg_check_modules( MYPKG REQUIRED opencv libv4l2 )
 include_directories( ${MYPKG_INCLUDE_DIRS} )
 
 add_executable ( hdrcam_v4l.out src/hdrcam_v4l.cpp )

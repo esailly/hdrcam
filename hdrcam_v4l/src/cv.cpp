@@ -64,6 +64,12 @@ int main() {
     req.memory = V4L2_MEMORY_MMAP;
     xioctl(fd, VIDIOC_REQBUFS, &req);
 
+    // set exposure to manual
+    v4l2_control c;
+    c.id = V4L2_CID_EXPOSURE_AUTO;
+    c.value = V4L2_EXPOSURE_MANUAL;
+    xioctl(fd, VIDIOC_S_CTRL, &c);
+
     buffers = (buffer_t*)calloc(req.count, sizeof(*buffers));
     for (n_buffers = 0; n_buffers < req.count; ++n_buffers) {
         CLEAR(buf);
@@ -110,6 +116,11 @@ int main() {
             perror("select");
             return errno;
         }
+
+    v4l2_control c;
+    c.id = V4L2_CID_EXPOSURE_ABSOLUTE;
+    c.value = 100;
+    xioctl(fd, VIDIOC_S_CTRL, &c);
 
         CLEAR(buf);
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

@@ -1,3 +1,3 @@
-[submodule "ext/libuvc"]
-	path = ext/libuvc
+[submodule "hdrcam_uvc/ext/libuvc"]
+	path = hdrcam_uvc/ext/libuvc
 	url = https://github.com/ktossell/libuvc

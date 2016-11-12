@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED ( VERSION 2.8 )
 
-PROJECT ( hdrcam )
+PROJECT ( hdrcam_uvc )
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to 'Release' as none was specified.")
@@ -43,13 +43,13 @@ set ( LIBUVC_SOURCE
     ext/libuvc/src/stream.c
     )
 
-add_executable ( hdrcam.out ${LIBUVC_SOURCE} src/hdrcam.cpp )
-target_link_libraries( hdrcam.out 
+add_executable ( hdrcam_uvc.out ${LIBUVC_SOURCE} src/hdrcam_uvc.cpp )
+target_link_libraries( hdrcam_uvc.out 
     ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
 
-add_executable ( caminfo.out ${LIBUVC_SOURCE} src/caminfo.cpp )
-target_link_libraries( caminfo.out 
+add_executable ( caminfo_uvc.out ${LIBUVC_SOURCE} src/caminfo_uvc.cpp )
+target_link_libraries( caminfo_uvc.out 
     ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
 
-install ( TARGETS hdrcam.out caminfo.out DESTINATION bin )
+install ( TARGETS hdrcam_uvc.out caminfo_uvc.out DESTINATION bin )
 

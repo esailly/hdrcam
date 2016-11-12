@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
+#include <string>
 
 #include <signal.h>
 #include <sys/types.h>
@@ -8,15 +9,13 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include <assert.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include <errno.h>
-#include <string.h>
 #include <unistd.h>
+
+using namespace std;
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -46,10 +45,10 @@ struct webcam_t {
 webcam_t * gWebcam;
 
 // Private sigaction to catch segmentation fault
-static struct sigaction *sa;
+struct sigaction *sa;
 
 // Private function for successfully ioctl-ing the v4l2 device
-static int _ioctl(int fh, int request, void *arg) {
+int _ioctl(int fh, int request, void *arg) {
 
     int res;
 
@@ -60,21 +59,12 @@ static int _ioctl(int fh, int request, void *arg) {
     return res;
 }
 
-static void convertToBGR(buffer_t buf, buffer_t *frame) {
-
-    if (frame->start == NULL) {
-        frame->length = buf.length;
-        frame->start = (uint8_t*) calloc(frame->length, sizeof(char));
-        memcpy(frame->start, buf.start, frame->length * sizeof(char));
-    }
-
-}
 
 /**
  * Reads a frame from the webcam, converts it into the BGR colorspace
  * and stores it in the webcam structure
  */
-static void webcam_read(webcam_t *w) {
+void webcam_read(webcam_t *w) {
 
     struct v4l2_buffer buf;
 
@@ -102,7 +92,13 @@ static void webcam_read(webcam_t *w) {
 
         // Lock frame mutex, and store BGR
         pthread_mutex_lock(&w->mtx_frame);
-        convertToBGR(w->buffers[buf.index], &w->frame);
+
+        if (w->frame.start == NULL) {
+            w->frame.length = w->buffers[buf.index].length;
+            w->frame.start = (uint8_t*) calloc(w->frame.length, sizeof(char));
+            memcpy(w->frame.start, w->buffers[buf.index].start, w->frame.length * sizeof(char));
+        }
+
         pthread_mutex_unlock(&w->mtx_frame);
         break;
     }
@@ -114,7 +110,7 @@ static void webcam_read(webcam_t *w) {
     }
 }
 
-static void *webcam_streaming(void *ptr) {
+void *webcam_streaming(void *ptr) {
 
     webcam_t *w = (webcam_t *)ptr;
     while(w->streaming) 
@@ -152,53 +148,56 @@ void webcam_close(webcam_t *w) {
  * When exiting the streaming mode, it sets the streaming
  * bit to false, and waits for the thread to finish.
  */
-void webcam_stream(webcam_t *w, bool flag)
-{
+void webcam_stream_start(webcam_t *w) {
+
     uint8_t i;
 
     struct v4l2_buffer buf;
     enum v4l2_buf_type type;
 
-    if (flag) {
-        // Clear buffers
-        for (i = 0; i < w->nbuffers; i++) {
-            CLEAR(buf);
-            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-            buf.memory = V4L2_MEMORY_MMAP;
-            buf.index = i;
+    // Clear buffers
+    for (i = 0; i < w->nbuffers; i++) {
+        CLEAR(buf);
+        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.memory = V4L2_MEMORY_MMAP;
+        buf.index = i;
 
-            if (-1 == _ioctl(w->fd, VIDIOC_QBUF, &buf)) {
-                fprintf(stderr, "Error clearing buffers on %s\n", w->name);
-                return;
-            }
-        }
-
-        // Turn on streaming
-        type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        if (-1 == _ioctl(w->fd, VIDIOC_STREAMON, &type)) {
-            fprintf(stderr, "Could not turn on streaming on %s\n", w->name);
+        if (-1 == _ioctl(w->fd, VIDIOC_QBUF, &buf)) {
+            fprintf(stderr, "Error clearing buffers on %s\n", w->name);
             return;
         }
+    }
 
-        // Set streaming to true and start thread
-        w->streaming = true;
-        pthread_create(&w->thread, NULL, webcam_streaming, (void *)w);
-    } else {
-        // Set streaming to false and wait for thread to finish
-        w->streaming = false;
-        pthread_join(w->thread, NULL);
+    // Turn on streaming
+    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (-1 == _ioctl(w->fd, VIDIOC_STREAMON, &type)) {
+        fprintf(stderr, "Could not turn on streaming on %s\n", w->name);
+        return;
+    }
 
-        // Turn off streaming
-        type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        if (-1 == _ioctl(w->fd, VIDIOC_STREAMOFF, &type)) {
-            fprintf(stderr, "Could not turn streaming off on %s\n", w->name);
-            return;
-        }
+    // Set streaming to true and start thread
+    w->streaming = true;
+    pthread_create(&w->thread, NULL, webcam_streaming, (void *)w);
+}
+
+void webcam_stream_stop(webcam_t *w) {
+
+    enum v4l2_buf_type type;
+
+    // Set streaming to false and wait for thread to finish
+    w->streaming = false;
+    pthread_join(w->thread, NULL);
+
+    // Turn off streaming
+    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (-1 == _ioctl(w->fd, VIDIOC_STREAMOFF, &type)) {
+        fprintf(stderr, "Could not turn streaming off on %s\n", w->name);
+        return;
     }
 }
 
 // Handler for segmentation faults
-static void handler(int , siginfo_t *, void *) {
+void handler(int , siginfo_t *, void *) {
 
     fprintf(stderr, "A segmentation fault occured. Cleaning up...\n");
 
@@ -207,7 +206,7 @@ static void handler(int , siginfo_t *, void *) {
         // If webcam is streaming, unlock the mutex, and stop streaming
         if (gWebcam->streaming) {
             pthread_mutex_unlock(&gWebcam->mtx_frame);
-            webcam_stream(gWebcam, false);
+            webcam_stream_stop(gWebcam);
         }
         webcam_close(gWebcam);
     }
@@ -427,7 +426,7 @@ int main() {
     buffer_t frame {nullptr, 0};
 
     webcam_resize(w, 640, 480);
-    webcam_stream(w, true);
+    webcam_stream_start(w);
     for (int i=0; i<3;) {
         webcam_grab(w, &frame);
 
@@ -441,7 +440,7 @@ int main() {
             sleep(1);
         }
     }
-    webcam_stream(w, false);
+    webcam_stream_stop(w);
     webcam_close(w);
 
     if (frame.start != NULL) 

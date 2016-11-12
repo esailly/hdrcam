@@ -23,7 +23,6 @@ struct buffer_t {
 };
 
 char dev_name[] = "/dev/video0";
-
 int fd = -1;
 buffer_t *buffers = NULL;
 unsigned int n_buffers = 1;
@@ -42,13 +41,12 @@ void errno_exit(const char *s) {
 }
 
 int xioctl(int fd, int request, void *arg) {
-
-    int r;
-
-    do r = ioctl(fd, request, arg);
-    while (-1 == r && EINTR == errno);
-
-    return r;
+    int res;
+    do {
+        res = ioctl(fd, request, arg);
+    }
+    while (-1 == res and EINTR == errno);
+    return res;
 }
 
 void dump_raw_to_file(void *data, int len, const char *suffix)
@@ -86,7 +84,6 @@ void process_image(const struct v4l2_buffer *buf) {
 int read_frame(void) {
 
     struct v4l2_buffer buf;
-
     CLEAR(buf);
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
@@ -357,6 +354,6 @@ int main() {
     uninit_device();
     close_device();
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 

@@ -1,16 +1,15 @@
-# hdrcam_uvc
+# hdrcam_v4l
 
 ## Description
 
 Capture webcam frames with varying exposure times, to compute HDR images, using 
-[libuvc](https://github.com/ktossell/libuvc). 
+[video4linux](https://www.linuxtv.org/). 
 
 ## Dependencies
 
 - g++, cmake, pkg-config
-- libusb, jpeg
+- libv4l, v4l-utils
 - opencv 3
-- libuvc (clone submodule with `git submodule update --init --recursive`)
 
 ## TODO
 
@@ -18,4 +17,5 @@ Capture webcam frames with varying exposure times, to compute HDR images, using
 - adjust exposure times dynamically
 - implement some white balance algorithms
 - clean code and fix bugs
+
 

@@ -1,3 +1,5 @@
+#include "Chrono.hpp"
+
 #include <opencv2/opencv.hpp>
 #include <linux/videodev2.h>
 #include <sys/mman.h>
@@ -34,11 +36,15 @@ int main() {
     const std::string DEVICE_NAME = "/dev/video0";
     const int WIDTH = 640;
     const int HEIGHT = 480;
+    const int tDark = 100;
+    const int tBright = 1000;
+    const int tSwitch = 50;
 
-    int device = -1;
+    cv::namedWindow("dark");
+    cv::namedWindow("bright");
 
     // open device
-    device = v4l2_open(DEVICE_NAME.c_str(), O_RDWR | O_NONBLOCK, 0);
+    int device = v4l2_open(DEVICE_NAME.c_str(), O_RDWR | O_NONBLOCK, 0);
     if (device < 0) {
         perror("Cannot open device");
         exit(EXIT_FAILURE);
@@ -54,8 +60,8 @@ int main() {
     fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
     xioctl(device, VIDIOC_S_FMT, &fmt);
     if ((fmt.fmt.pix.width != WIDTH) || (fmt.fmt.pix.height != HEIGHT))
-        printf("Warning: driver is sending image at %dx%d\\n",
-                fmt.fmt.pix.width, fmt.fmt.pix.height);
+        std::cout << "Warning: driver is sending image at " 
+            << fmt.fmt.pix.width << "x" << fmt.fmt.pix.height << std::endl;
 
     // request buffers
     struct v4l2_requestbuffers req;
@@ -67,7 +73,9 @@ int main() {
 
     // init buffers
     std::vector<buffer_t> buffers(req.count);
-    for (unsigned iBuffers=0; iBuffers < buffers.size(); iBuffers++) {
+    unsigned nBuffers = buffers.size();
+    std::cout << "nBuffers: " << nBuffers << std::endl;
+    for (unsigned iBuffers=0; iBuffers < nBuffers; iBuffers++) {
 
         struct v4l2_buffer buf;
         CLEAR(buf);
@@ -90,10 +98,8 @@ int main() {
     }
 
     // set exposure to manual
-    v4l2_control c;
-    c.id = V4L2_CID_EXPOSURE_AUTO;
-    c.value = V4L2_EXPOSURE_MANUAL;
-    xioctl(device, VIDIOC_S_CTRL, &c);
+    v4l2_set_control(device, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL);
+    v4l2_set_control(device, V4L2_CID_EXPOSURE_ABSOLUTE, tBright);
 
     // start streaming
     enum v4l2_buf_type type_streamon;
@@ -101,13 +107,21 @@ int main() {
     xioctl(device, VIDIOC_STREAMON, &type_streamon);
 
     // process video flux
-    for (int i = 0; i < 20; i++) {
+    Chrono chrono;
+    bool isDark = false;
+    unsigned usedBuffers = 0;
+    while (true) {
+
+        // handle user events
+        int key = cv::waitKey(10);
+        if (key % 0x100 == 27) 
+            break;
 
         // wait until device is ready
-        fd_set fds;
-        struct timeval tv;
         int res;
         do {
+            fd_set fds;
+            struct timeval tv;
             FD_ZERO(&fds);
             FD_SET(device, &fds);
             tv.tv_sec = 2;
@@ -119,12 +133,6 @@ int main() {
             return errno;
         }
 
-        // set exposure time for next frames
-        v4l2_control c;
-        c.id = V4L2_CID_EXPOSURE_ABSOLUTE;
-        c.value = 100;
-        xioctl(device, VIDIOC_S_CTRL, &c);
-
         // dequeue buffer
         struct v4l2_buffer buf;
         CLEAR(buf);
@@ -132,12 +140,29 @@ int main() {
         buf.memory = V4L2_MEMORY_MMAP;
         xioctl(device, VIDIOC_DQBUF, &buf);
 
-        // process data
-        void * data = buffers[buf.index].start;
-        cv::Mat mYUYV(HEIGHT, WIDTH, CV_8UC2, data);
-        cv::Mat mBGR(HEIGHT, WIDTH, CV_8UC3);
-        cv::cvtColor(mYUYV, mBGR, cv::COLOR_YUV2BGR_YUYV);
-        cv::imwrite("frame_"+std::to_string(i)+".png", mBGR);
+        // process data after new controls are used
+        usedBuffers++;
+        if (chrono.elapsedRunning() > tSwitch and usedBuffers > nBuffers) {
+
+            // get image data
+            void * data = buffers[buf.index].start;
+            cv::Mat mYUYV(HEIGHT, WIDTH, CV_8UC2, data);
+            cv::Mat mBGR(HEIGHT, WIDTH, CV_8UC3);
+            cv::cvtColor(mYUYV, mBGR, cv::COLOR_YUV2BGR_YUYV);
+
+            // display frame and prepare for next frame
+            if (isDark) {
+                cv::imshow("dark", mBGR);
+                v4l2_set_control(device, V4L2_CID_EXPOSURE_ABSOLUTE, tBright);
+            }
+            else {
+                cv::imshow("bright", mBGR);
+                v4l2_set_control(device, V4L2_CID_EXPOSURE_ABSOLUTE, tDark);
+            }
+            chrono.restart();
+            isDark = not isDark;
+            usedBuffers = 0;
+        }
 
         // enqueue buffer
         xioctl(device, VIDIOC_QBUF, &buf);

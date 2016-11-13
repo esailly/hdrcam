@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <libv4l2.h>
 #include <string>
+#include <vector>
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -23,124 +24,137 @@ void xioctl(int fh, int request, void *arg) {
     while (r == -1 and (errno == EINTR or errno == EAGAIN));
 
     if (r == -1) {
-        //fprintf(stderr, "error %d, %s\\n", errno, strerror(errno));
+        std::cerr << "error " << errno << ", " << strerror(errno) << std::endl;
         exit(EXIT_FAILURE);
     }
 }
 
 int main() {
 
-    struct v4l2_format              fmt;
-    struct v4l2_buffer              buf;
-    struct v4l2_requestbuffers      req;
-    enum v4l2_buf_type              type;
-    fd_set                          fds;
-    struct timeval                  tv;
-    int                             r, fd = -1;
-    unsigned int                    i, n_buffers;
-    char                            dev_name[] = "/dev/video0";
-    buffer_t                   *buffers;
+    const std::string DEVICE_NAME = "/dev/video0";
+    const int WIDTH = 640;
+    const int HEIGHT = 480;
 
-    fd = v4l2_open(dev_name, O_RDWR | O_NONBLOCK, 0);
-    if (fd < 0) {
+    int device = -1;
+
+    // open device
+    device = v4l2_open(DEVICE_NAME.c_str(), O_RDWR | O_NONBLOCK, 0);
+    if (device < 0) {
         perror("Cannot open device");
         exit(EXIT_FAILURE);
     }
 
+    // format capture
+    struct v4l2_format fmt;
     CLEAR(fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width       = 640;
-    fmt.fmt.pix.height      = 480;
+    fmt.fmt.pix.width       = WIDTH;
+    fmt.fmt.pix.height      = HEIGHT;
     fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
     fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
-    xioctl(fd, VIDIOC_S_FMT, &fmt);
-    if ((fmt.fmt.pix.width != 640) || (fmt.fmt.pix.height != 480))
+    xioctl(device, VIDIOC_S_FMT, &fmt);
+    if ((fmt.fmt.pix.width != WIDTH) || (fmt.fmt.pix.height != HEIGHT))
         printf("Warning: driver is sending image at %dx%d\\n",
                 fmt.fmt.pix.width, fmt.fmt.pix.height);
 
+    // request buffers
+    struct v4l2_requestbuffers req;
     CLEAR(req);
     req.count = 2;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
-    xioctl(fd, VIDIOC_REQBUFS, &req);
+    xioctl(device, VIDIOC_REQBUFS, &req);
+
+    // init buffers
+    std::vector<buffer_t> buffers(req.count);
+    for (unsigned iBuffers=0; iBuffers < buffers.size(); iBuffers++) {
+
+        struct v4l2_buffer buf;
+        CLEAR(buf);
+        buf.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.memory      = V4L2_MEMORY_MMAP;
+        buf.index       = iBuffers;
+        xioctl(device, VIDIOC_QUERYBUF, &buf);
+
+        buffers[iBuffers].length = buf.length;
+        buffers[iBuffers].start = v4l2_mmap(NULL, buf.length,
+                PROT_READ | PROT_WRITE, MAP_SHARED,
+                device, buf.m.offset);
+
+        if (MAP_FAILED == buffers[iBuffers].start) {
+            perror("mmap");
+            exit(EXIT_FAILURE);
+        }
+
+        xioctl(device, VIDIOC_QBUF, &buf);
+    }
 
     // set exposure to manual
     v4l2_control c;
     c.id = V4L2_CID_EXPOSURE_AUTO;
     c.value = V4L2_EXPOSURE_MANUAL;
-    xioctl(fd, VIDIOC_S_CTRL, &c);
+    xioctl(device, VIDIOC_S_CTRL, &c);
 
-    buffers = (buffer_t*)calloc(req.count, sizeof(*buffers));
-    for (n_buffers = 0; n_buffers < req.count; ++n_buffers) {
-        CLEAR(buf);
+    // start streaming
+    enum v4l2_buf_type type_streamon;
+    type_streamon = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    xioctl(device, VIDIOC_STREAMON, &type_streamon);
 
-        buf.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory      = V4L2_MEMORY_MMAP;
-        buf.index       = n_buffers;
+    // process video flux
+    for (int i = 0; i < 20; i++) {
 
-        xioctl(fd, VIDIOC_QUERYBUF, &buf);
-
-        buffers[n_buffers].length = buf.length;
-        buffers[n_buffers].start = v4l2_mmap(NULL, buf.length,
-                PROT_READ | PROT_WRITE, MAP_SHARED,
-                fd, buf.m.offset);
-
-        if (MAP_FAILED == buffers[n_buffers].start) {
-            perror("mmap");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    for (i = 0; i < n_buffers; ++i) {
-        CLEAR(buf);
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_MMAP;
-        buf.index = i;
-        xioctl(fd, VIDIOC_QBUF, &buf);
-    }
-    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-    xioctl(fd, VIDIOC_STREAMON, &type);
-    for (i = 0; i < 20; i++) {
+        // wait until device is ready
+        fd_set fds;
+        struct timeval tv;
+        int res;
         do {
             FD_ZERO(&fds);
-            FD_SET(fd, &fds);
-
-            /* Timeout. */
+            FD_SET(device, &fds);
             tv.tv_sec = 2;
             tv.tv_usec = 0;
-
-            r = select(fd + 1, &fds, NULL, NULL, &tv);
-        } while ((r == -1 && (errno = EINTR)));
-        if (r == -1) {
+            res = select(device + 1, &fds, NULL, NULL, &tv);
+        } while ((res == -1 && (errno = EINTR)));
+        if (res == -1) {
             perror("select");
             return errno;
         }
 
-    v4l2_control c;
-    c.id = V4L2_CID_EXPOSURE_ABSOLUTE;
-    c.value = 100;
-    xioctl(fd, VIDIOC_S_CTRL, &c);
+        // set exposure time for next frames
+        v4l2_control c;
+        c.id = V4L2_CID_EXPOSURE_ABSOLUTE;
+        c.value = 100;
+        xioctl(device, VIDIOC_S_CTRL, &c);
 
+        // dequeue buffer
+        struct v4l2_buffer buf;
         CLEAR(buf);
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
-        xioctl(fd, VIDIOC_DQBUF, &buf);
+        xioctl(device, VIDIOC_DQBUF, &buf);
 
+        // process data
         void * data = buffers[buf.index].start;
-        cv::Mat mYUYV(480, 640, CV_8UC2, data);
-        cv::Mat mBGR(480, 640, CV_8UC3);
+        cv::Mat mYUYV(HEIGHT, WIDTH, CV_8UC2, data);
+        cv::Mat mBGR(HEIGHT, WIDTH, CV_8UC3);
         cv::cvtColor(mYUYV, mBGR, cv::COLOR_YUV2BGR_YUYV);
         cv::imwrite("frame_"+std::to_string(i)+".png", mBGR);
 
-        xioctl(fd, VIDIOC_QBUF, &buf);
+        // enqueue buffer
+        xioctl(device, VIDIOC_QBUF, &buf);
+
     }
 
-    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    xioctl(fd, VIDIOC_STREAMOFF, &type);
-    for (i = 0; i < n_buffers; ++i)
-        v4l2_munmap(buffers[i].start, buffers[i].length);
-    v4l2_close(fd);
+    // stop streaming
+    enum v4l2_buf_type type_streamoff;
+    type_streamoff = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    xioctl(device, VIDIOC_STREAMOFF, &type_streamoff);
+
+    // release buffers
+    for (buffer_t & b : buffers)
+        v4l2_munmap(b.start, b.length);
+
+    // close device
+    v4l2_close(device);
 
     return 0;
 }

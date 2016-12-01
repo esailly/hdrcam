@@ -31,9 +31,9 @@ void xioctl(int fh, int request, void *arg) {
     }
 }
 
-int main() {
+int main(int argc, char ** argv) {
 
-    const std::string DEVICE_NAME = "/dev/video0";
+    const std::string DEVICE_NAME = argc==1 ? "/dev/video0" : argv[1];
     const int WIDTH = 640;
     const int HEIGHT = 480;
     const int tDark = 100;

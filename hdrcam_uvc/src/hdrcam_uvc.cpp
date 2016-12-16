@@ -13,6 +13,8 @@ uvc_frame_t * gFrame;
 // image parameters
 int gWidth = 640;
 int gHeight = 480;
+int gBrightExp = 500;
+int gDarkExp = 50;
 
 // capture/processing synchronization
 bool gIsDark = false;
@@ -38,11 +40,11 @@ void captureFun(uvc_frame_t * frame, void *) {
     // change exposure time for next capture
     if (gIsDark) {
         gIsDark = false;
-        tryUvc("set_exp_abs", uvc_set_exposure_abs(gDevh, 1000));
+        tryUvc("set_exp_abs", uvc_set_exposure_abs(gDevh, gBrightExp));
     }
     else {
         gIsDark = true;
-        tryUvc("set_exp_abs", uvc_set_exposure_abs(gDevh, 100));
+        tryUvc("set_exp_abs", uvc_set_exposure_abs(gDevh, gDarkExp));
     }
 
 }

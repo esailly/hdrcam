@@ -1,1 +1,17 @@
 .*~
+hdrcam_uvc.sauv/
+hdrcam_v4l.sauv/
+___old_hdrcam/
+Test_memorial/
+CMakeFiles/
+nbproject/
+*.csv
+*.out
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile
+*.exr
+hdrcam_uvc/ext/
+exrview.cpp
+

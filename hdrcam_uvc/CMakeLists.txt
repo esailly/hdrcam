@@ -51,5 +51,17 @@ add_executable ( caminfo_uvc.out ${LIBUVC_SOURCE} src/caminfo_uvc.cpp )
 target_link_libraries( caminfo_uvc.out 
     ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
 
-install ( TARGETS hdrcam_uvc.out caminfo_uvc.out DESTINATION bin )
+add_executable ( Hdrcam.out ${LIBUVC_SOURCE} src/Hdrcam.cpp )
+target_link_libraries( Hdrcam.out 
+    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
+
+add_executable ( Hdrcam2.out ${LIBUVC_SOURCE} src/Hdrcam2.cpp )
+target_link_libraries( Hdrcam2.out 
+    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
+
+add_executable ( exrview.out ${LIBUVC_SOURCE} src/exrview.cpp )
+target_link_libraries( exrview.out 
+    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
+
+install ( TARGETS hdrcam_uvc.out caminfo_uvc.out Hdrcam.out Hdrcam2.out exrview.out DESTINATION bin )
 

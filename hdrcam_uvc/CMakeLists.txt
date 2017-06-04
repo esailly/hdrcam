@@ -43,25 +43,18 @@ set ( LIBUVC_SOURCE
     ext/libuvc/src/stream.c
     )
 
-add_executable ( hdrcam_uvc.out ${LIBUVC_SOURCE} src/hdrcam_uvc.cpp )
-target_link_libraries( hdrcam_uvc.out 
-    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
-
 add_executable ( caminfo_uvc.out ${LIBUVC_SOURCE} src/caminfo_uvc.cpp )
 target_link_libraries( caminfo_uvc.out 
     ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
 
-add_executable ( Hdrcam.out ${LIBUVC_SOURCE} src/Hdrcam.cpp )
-target_link_libraries( Hdrcam.out 
+
+add_executable ( Hdrcam_Test.out ${LIBUVC_SOURCE} src/Hdrcam_Test.cpp )
+target_link_libraries( Hdrcam_Test.out 
     ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
 
-add_executable ( Hdrcam2.out ${LIBUVC_SOURCE} src/Hdrcam2.cpp )
-target_link_libraries( Hdrcam2.out 
+add_executable ( HdrCam_Video.out ${LIBUVC_SOURCE} src/HdrCam_Video.cpp )
+target_link_libraries( HdrCam_Video.out 
     ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
 
-add_executable ( exrview.out ${LIBUVC_SOURCE} src/exrview.cpp )
-target_link_libraries( exrview.out 
-    ${MYPKG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${LIBUSB_LIBRARIES})
-
-install ( TARGETS hdrcam_uvc.out caminfo_uvc.out Hdrcam.out Hdrcam2.out exrview.out DESTINATION bin )
+install ( TARGETS caminfo_uvc.out Hdrcam_Test.out HdrCam_Video.out DESTINATION bin )
 

@@ -1,6 +1,8 @@
 #include <libuvc/libuvc.h>
 #include <iostream>
 
+#include "libuvc/libuvc_internal.h"
+
 void tryUvc(const char * msg, uvc_error_t res) {
     if (res < 0) {
         uvc_perror(res, msg);
@@ -17,8 +19,8 @@ int main() {
 
     tryUvc("init", uvc_init(&ctx, NULL));
     //tryUvc("find_device", uvc_find_device(ctx, &dev, 0, 0, NULL));
-    tryUvc("find_device", uvc_find_device(ctx, &dev, 0, 2057, nullptr)); //logitec
-    //tryUvc("find_device", uvc_find_device(ctx, &dev, 0, 12314, NULL));
+    //tryUvc("find_device", uvc_find_device(ctx, &dev, 0, 2057, nullptr)); //logitec
+    tryUvc("find_device", uvc_find_device(ctx, &dev, 0, 12314, NULL));
     tryUvc("open", uvc_open(dev, &devh));
     tryUvc("get_ctrl", 
             uvc_get_stream_ctrl_format_size(
